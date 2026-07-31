@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge.internal/schemas/brief.schema.json",
+  "title": "ClientBrief",
+  "description": "Canonical brief object. Written by the intake webhook, stored in Supabase, passed to Fable in Cursor alongside the backend + frontend templates. Every downstream step reads from this and nothing else.",
+  "type": "object",
+  "required": ["brief_id", "order_id", "account_id", "created_at", "business", "site", "design", "three_d", "integrations"],
+  "additionalProperties": false,
+  "properties": {
+    "brief_id": { "type": "string", "format": "uuid" },
+    "order_id": { "type": "string", "description": "Stripe checkout session id or internal order id" },
+    "account_id": { "type": "string", "description": "Supabase auth.users.id of the purchaser" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "tier": { "enum": ["starter", "studio", "flagship"], "default": "studio" },
+
+    "business": {
+      "type": "object",
+      "required": ["name", "industry", "one_liner", "audience"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "legal_name": { "type": "string", "maxLength": 200 },
+        "industry": { "type": "string", "maxLength": 80 },
+        "one_liner": { "type": "string", "maxLength": 240, "description": "What they do in the client's own words. Becomes the hero thesis." },
+        "audience": { "type": "string", "maxLength": 300 },
+        "differentiator": { "type": "string", "maxLength": 500 },
+        "competitors": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
+        "tone_words": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+        "locale": { "type": "string", "default": "en-US" },
+        "timezone": { "type": "string", "default": "UTC" },
+        "contact": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string", "format": "email" },
+            "phone": { "type": "string" },
+            "address": { "type": "string" },
+            "socials": { "type": "object", "additionalProperties": { "type": "string", "format": "uri" } }
+          }
+        }
+      }
+    },
+
+    "site": {
+      "type": "object",
+      "required": ["domain", "pages", "primary_cta"],
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "type": "object",
+          "required": ["desired", "registrar_action"],
+          "properties": {
+            "desired": { "type": "string", "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+$" },
+            "registrar_action": { "enum": ["register_new", "transfer_in", "point_existing", "subdomain_only"] },
+            "nameserver_control": { "type": "boolean", "default": true }
+          }
+        },
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "items": {
+            "type": "object",
+            "required": ["slug", "title", "purpose"],
+            "properties": {
+              "slug": { "type": "string", "pattern": "^[a-z0-9/-]*$" },
+              "title": { "type": "string" },
+              "purpose": { "type": "string" },
+              "sections": {
+                "type": "array",
+                "items": { "enum": ["hero3d", "feature_grid", "product_showcase_3d", "process_timeline", "proof", "pricing", "faq", "team", "gallery", "contact_form", "cta_band", "logo_wall", "stat_band", "editorial_long", "location_hours"] }
+              }
+            }
+          }
+        },
+        "primary_cta": {
+          "type": "object",
+          "required": ["label", "action"],
+          "properties": {
+            "label": { "type": "string", "maxLength": 32 },
+            "action": { "enum": ["checkout", "booking", "contact_form", "external_link", "signup"] },
+            "target": { "type": "string" }
+          }
+        },
+        "legal": {
+          "type": "object",
+          "properties": {
+            "needs_privacy_policy": { "type": "boolean", "default": true },
+            "needs_terms": { "type": "boolean", "default": true },
+            "cookie_regime": { "enum": ["none", "gdpr", "ccpa", "both"], "default": "gdpr" }
+          }
+        }
+      }
+    },
+
+    "design": {
+      "type": "object",
+      "required": ["direction"],
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "enum": ["kinetic-industrial", "soft-optic", "archive-editorial", "liquid-chrome", "botanical-technical", "monolith", "custom"],
+          "description": "Selects a token pack in frontend/src/styles/directions/. Do not invent new ones at generate time; add a pack file instead."
+        },
+        "custom_direction_notes": { "type": "string", "maxLength": 1200 },
+        "palette_locks": { "type": "array", "items": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "maxItems": 6, "description": "Client brand colors that must survive. Overrides the pack." },
+        "typeface_locks": { "type": "array", "items": { "type": "string" }, "maxItems": 3 },
+        "logo_asset_url": { "type": "string", "format": "uri" },
+        "references": { "type": "array", "items": { "type": "string", "format": "uri" }, "maxItems": 10 },
+        "avoid": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
+        "motion_intensity": { "enum": ["still", "restrained", "alive", "cinematic"], "default": "restrained" }
+      }
+    },
+
+    "three_d": {
+      "type": "object",
+      "required": ["required", "subjects"],
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean", "default": true },
+        "subjects": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 12,
+          "description": "Each becomes one asset-manifest entry and one Higgsfield generate_3d job.",
+          "items": {
+            "type": "object",
+            "required": ["key", "prompt", "placement"],
+            "properties": {
+              "key": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Stable id. The frontend imports by this key and never by filename." },
+              "prompt": { "type": "string", "maxLength": 600, "description": "Passed verbatim to Higgsfield generate_3d." },
+              "placement": { "enum": ["hero", "showcase", "inline", "background", "cursor_follow", "scroll_scrub"] },
+              "material_hint": { "enum": ["matte", "metal", "glass", "ceramic", "fabric", "liquid", "emissive"], "default": "matte" },
+              "scale_hint": { "type": "number", "default": 1 },
+              "poly_budget": { "type": "integer", "default": 80000, "description": "Post-decimation target. Hero <=120k, inline <=40k." },
+              "must_be_accurate": { "type": "boolean", "default": false, "description": "true = this is the client's real product; a wrong-looking mesh fails QA and must be escalated to a human." }
+            }
+          }
+        },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "hdri": { "enum": ["studio", "warehouse", "dawn", "night", "city", "forest", "apartment", "none"], "default": "studio" },
+            "bg_mode": { "enum": ["solid", "gradient", "transparent", "hdri_visible"], "default": "solid" }
+          }
+        },
+        "fallback_policy": { "enum": ["poster_image", "css_only", "low_poly_primitive"], "default": "poster_image" }
+      }
+    },
+
+    "integrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stripe": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "mode": { "enum": ["one_time", "subscription", "both"], "default": "one_time" },
+            "products": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["sku", "name", "amount_cents", "currency"],
+                "properties": {
+                  "sku": { "type": "string" },
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "amount_cents": { "type": "integer", "minimum": 0 },
+                  "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+                  "recurring": { "enum": ["none", "month", "year"], "default": "none" }
+                }
+              }
+            },
+            "tax_enabled": { "type": "boolean", "default": true }
+          }
+        },
+        "mail": {
+          "type": "object",
+          "properties": {
+            "provider": { "enum": ["zoho"], "default": "zoho" },
+            "create_mailbox": { "type": "boolean", "default": true },
+            "aliases": { "type": "array", "items": { "type": "string" }, "default": ["hello", "support"] },
+            "from_name": { "type": "string" }
+          }
+        },
+        "analytics": { "enum": ["cloudflare_web_analytics", "plausible", "none"], "default": "cloudflare_web_analytics" },
+        "booking_url": { "type": "string", "format": "uri" },
+        "crm_webhook": { "type": "string", "format": "uri", "description": "Optional client-owned endpoint that receives form submissions." }
+      }
+    },
+
+    "content": {
+      "type": "object",
+      "description": "Optional client-supplied copy. Anything absent is written by Fable from business.*, and must never be lorem ipsum.",
+      "properties": {
+        "supplied_copy": { "type": "object", "additionalProperties": { "type": "string" } },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "kind": { "enum": ["image", "video", "logo", "document"] },
+              "alt": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

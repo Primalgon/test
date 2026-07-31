@@ -1,0 +1,379 @@
+{
+  "name": "Forge 01 — brief intake and generation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "forge/brief",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "n-0001",
+      "name": "Brief received",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        300
+      ],
+      "webhookId": "forge-brief-intake"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Two jobs: prove the call came from your platform, and prove the brief is\n// usable. A malformed brief that reaches step 3 wastes an entire generation\n// cycle, so it is rejected here where rejection is free.\nconst crypto = require('crypto');\n\nconst raw = typeof $json.body === 'string' ? $json.body : JSON.stringify($json.body);\nconst headers = $json.headers || {};\nconst ts = headers['x-forge-timestamp'];\nconst provided = String(headers['x-forge-signature'] || '').replace(/^sha256=/, '');\n\nif (!ts || !provided) throw new Error('Missing signature headers');\nif (Math.abs(Date.now() / 1000 - Number(ts)) > 300) {\n  throw new Error('Timestamp outside tolerance — replay attempt or clock skew');\n}\n\nconst expected = crypto.createHmac('sha256', $env.PLATFORM_INGEST_SECRET)\n  .update(ts + '.' + raw).digest('hex');\nconst a = Buffer.from(expected, 'hex');\nconst b = Buffer.from(provided, 'hex');\n// A plain === on a signature leaks timing information one byte at a time.\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) throw new Error('Bad signature');\n\nconst brief = JSON.parse(raw);\n\n// Validation. Not the full JSON Schema — that runs in the next node against\n// contracts/brief.schema.json. These are the fields without which nothing\n// downstream can even start.\nconst problems = [];\nconst need = (p, v) => { if (v === undefined || v === null || v === '') problems.push('missing ' + p); };\n\nneed('brief_id', brief.brief_id);\nneed('order_id', brief.order_id);\nneed('account_id', brief.account_id);\nneed('business.name', brief.business?.name);\nneed('business.one_liner', brief.business?.one_liner);\nneed('site.domain.desired', brief.site?.domain?.desired);\nneed('design.direction', brief.design?.direction);\n\nconst DIRECTIONS = ['kinetic-industrial','soft-optic','archive-editorial','liquid-chrome','botanical-technical','monolith'];\nif (brief.design?.direction && !DIRECTIONS.includes(brief.design.direction)) {\n  problems.push('design.direction \"' + brief.design.direction + '\" is not one of the six packs');\n}\n\nif (!Array.isArray(brief.site?.pages) || brief.site.pages.length === 0) {\n  problems.push('site.pages must list at least one page');\n}\n\nif (brief.three_d?.required && !(brief.three_d.subjects || []).length) {\n  problems.push('three_d.required is true but three_d.subjects is empty');\n}\nfor (const s of brief.three_d?.subjects || []) {\n  if (!/^[a-z0-9_]+$/.test(s.key || '')) problems.push('three_d subject key \"' + s.key + '\" must be lower_snake_case');\n  // Under about fifteen words Higgsfield returns something generic. The brief\n  // form should enforce this, but briefs arrive from other places too.\n  if ((s.prompt || '').split(/\\s+/).length < 12) {\n    problems.push('three_d subject \"' + s.key + '\" prompt is too thin to generate a specific mesh');\n  }\n}\n\nif (brief.integrations?.stripe?.enabled) {\n  const skus = (brief.integrations.stripe.products || []).map((p) => p.sku);\n  if (new Set(skus).size !== skus.length) problems.push('duplicate SKUs in integrations.stripe.products');\n  for (const p of brief.integrations.stripe.products || []) {\n    if (!Number.isInteger(p.amount_cents) || p.amount_cents < 0) {\n      problems.push('product ' + p.sku + ' amount_cents must be a non-negative integer (cents, not dollars)');\n    }\n  }\n}\n\nconst slug = String(brief.site.domain.desired).replace(/^https?:\\/\\//, '').split('/')[0]\n  .replace(/\\./g, '-').toLowerCase();\n\nreturn [{\n  json: {\n    brief,\n    brief_id: brief.brief_id,\n    account_id: brief.account_id,\n    order_id: brief.order_id,\n    site_slug: slug,\n    site_origin: 'https://' + brief.site.domain.desired,\n    valid: problems.length === 0,\n    problems,\n  },\n}];"
+      },
+      "id": "n-0002",
+      "name": "Verify + validate brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n-0003",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/briefs?brief_id=eq.{{ $json.brief_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: \"generating\", site_slug: $json.site_slug, validated_at: new Date().toISOString() }) }}"
+      },
+      "id": "n-0004",
+      "name": "Supabase — mark validating",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/briefs?brief_id=eq.{{ $json.brief_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: \"needs_revision\", validation_problems: $json.problems, validated_at: new Date().toISOString() }) }}"
+      },
+      "id": "n-0005",
+      "name": "Supabase — reject brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// What Cursor/Fable receives: the brief, the template contract, and the\n// explicit boundary of what may be edited. Restating the boundary in the\n// payload matters — the model reads this far more reliably than it reads a\n// README that happens to be in the repo.\nconst brief = $('Verify + validate brief').first().json.brief;\nconst slug = $('Verify + validate brief').first().json.site_slug;\n\nconst subjects = brief.three_d?.subjects || [];\n\n// The manifest is written NOW, with placeholders, before any 3D exists. That\n// is what lets generation and asset production run in parallel instead of\n// serially, and it is why the step-4 swap needs no code change.\nconst manifest = {\n  version: 1,\n  site: slug,\n  generated_at: new Date().toISOString(),\n  assets: Object.fromEntries(subjects.map((s) => [s.key, {\n    key: s.key,\n    status: 'placeholder',\n    source: 'primitive',\n    url: null,\n    poster: null,\n    placement: s.placement || 'inline',\n    primitive: s.material_hint === 'glass' ? 'icosahedron'\n             : s.material_hint === 'metal' ? 'torus_knot'\n             : 'rounded_box',\n    transform: { scale: s.scale_hint || 1, autofit: true, position: [0, 0, 0], rotation: [0, 0, 0] },\n    animation: s.placement === 'hero' ? 'pointer_parallax' : 'scroll_scrub',\n    budget: { max_triangles: s.poly_budget || 80000, max_bytes: 6000000 },\n    alt: s.prompt.slice(0, 160),\n  }])),\n};\n\nreturn [{\n  json: {\n    site_slug: slug,\n    site_origin: 'https://' + brief.site.domain.desired,\n    brief_id: brief.brief_id,\n    account_id: brief.account_id,\n    order_id: brief.order_id,\n    generation_request: {\n      brief,\n      template_repo: $env.FORGE_TEMPLATE_REPO,\n      target_repo: $env.FORGE_SITES_ORG + '/' + slug,\n      instructions_path: 'README.md',\n      write_files: [\n        'frontend/src/site.config.ts',\n        'frontend/index.html',\n        'frontend/src/pages/*',\n        'frontend/src/sections/*',\n        'frontend/src/data/assets.manifest.json',\n        'backend/wrangler.toml',\n      ],\n      do_not_touch: [\n        'backend/src/middleware/*',\n        'backend/src/lib/crypto.ts',\n        'backend/src/db/client.ts',\n        'frontend/src/three/*',\n        'contracts/*',\n      ],\n      seed_manifest: manifest,\n      direction: brief.design.direction,\n      acceptance: [\n        'npm run typecheck passes in both templates',\n        'npm run build then npm run budget passes with three.js outside the entry chunk',\n        'no placeholder token, lorem text, or invented client fact survives',\n        'every string traces to a field of the brief',\n      ],\n    },\n  },\n}];"
+      },
+      "id": "n-0006",
+      "name": "Build generation payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "timeout": 1800000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "method": "POST",
+        "url": "={{ $env.CURSOR_AGENT_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.CURSOR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.generation_request) }}"
+      },
+      "id": "n-0007",
+      "name": "Cursor — start generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const res = $json;\nconst ctx = $('Build generation payload').first().json;\n\nconst ok = res.status === 'completed' || res.success === true;\nif (!ok) {\n  throw new Error('Generation did not complete: ' + JSON.stringify(res).slice(0, 500));\n}\n\nreturn [{\n  json: {\n    ...ctx,\n    repo_url: res.repo_url || res.output?.repo_url,\n    commit_sha: res.commit_sha || res.output?.commit_sha,\n    brief: $('Verify + validate brief').first().json.brief,\n  },\n}];"
+      },
+      "id": "n-0008",
+      "name": "Check generation result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.FORGE_QA_WORKFLOW_ID }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "n-0009",
+      "name": "Hand off to QA workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ accepted: $json.valid !== false, brief_id: $json.brief_id, problems: $json.problems || [] }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "n-0010",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Brief received": {
+      "main": [
+        [
+          {
+            "node": "Verify + validate brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify + validate brief": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Supabase — mark validating",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase — reject brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase — mark validating": {
+      "main": [
+        [
+          {
+            "node": "Build generation payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase — reject brief": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build generation payload": {
+      "main": [
+        [
+          {
+            "node": "Cursor — start generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cursor — start generation": {
+      "main": [
+        [
+          {
+            "node": "Check generation result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check generation result": {
+      "main": [
+        [
+          {
+            "node": "Hand off to QA workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hand off to QA workflow": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": "={{ $env.FORGE_ERROR_WORKFLOW_ID }}",
+    "timezone": "UTC"
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "forge"
+  },
+  "tags": [
+    {
+      "name": "forge"
+    }
+  ]
+}

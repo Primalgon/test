@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules/
+dist/
+.wrangler/
+*.tsbuildinfo
+
+# Per-site secrets — never commit. The keyring in .dev.vars decrypts client
+# PII; a committed copy is a breach, not a backup. (README: "keeps encryption
+# keys out of commits. Do not delete.")
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+
+# Generated artifacts
+selfcheck-report.html
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log

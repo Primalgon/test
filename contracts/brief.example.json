@@ -1,0 +1,81 @@
+{
+  "brief_id": "3f2c9a10-8b5e-4d21-9c77-1a4e6f0b2d93",
+  "order_id": "cs_live_a1B2c3D4e5",
+  "account_id": "8c1d4e77-2b90-4f3a-b6d5-9e7c0a1f2345",
+  "created_at": "2026-07-30T14:22:05.000Z",
+  "tier": "studio",
+  "business": {
+    "name": "Vantry Optics",
+    "legal_name": "Vantry Optics Ltd",
+    "industry": "Precision optics manufacturing",
+    "one_liner": "We grind and coat custom lens assemblies for scientific instruments in runs of five to fifty.",
+    "audience": "Instrument engineers and lab procurement leads who need optics that catalogue suppliers won't quote",
+    "differentiator": "Six-week turnaround on custom aspherics; most competitors quote sixteen weeks or decline small runs entirely.",
+    "competitors": ["Edmund Optics", "Thorlabs", "Optikos"],
+    "tone_words": ["precise", "unshowy", "technical", "direct"],
+    "locale": "en-GB",
+    "timezone": "Europe/London",
+    "contact": {
+      "email": "hello@vantryoptics.com",
+      "phone": "+44.2079460102",
+      "address": "Unit 7, Halewood Works, Sheffield S9 2LR",
+      "socials": { "linkedin": "https://linkedin.com/company/vantry-optics" }
+    }
+  },
+  "site": {
+    "domain": { "desired": "vantryoptics.com", "registrar_action": "register_new", "nameserver_control": true },
+    "pages": [
+      { "slug": "", "title": "Vantry Optics", "purpose": "Establish capability and get an engineer to send a spec",
+        "sections": ["hero3d", "stat_band", "product_showcase_3d", "process_timeline", "proof", "contact_form"] },
+      { "slug": "capabilities", "title": "Capabilities", "purpose": "Tolerances, coatings, materials, run sizes",
+        "sections": ["editorial_long", "feature_grid", "cta_band"] },
+      { "slug": "contact", "title": "Request a quote", "purpose": "Capture a spec enquiry with enough detail to quote",
+        "sections": ["contact_form"] }
+    ],
+    "primary_cta": { "label": "Send us a spec", "action": "contact_form", "target": "/contact" },
+    "legal": { "needs_privacy_policy": true, "needs_terms": true, "cookie_regime": "gdpr" }
+  },
+  "design": {
+    "direction": "soft-optic",
+    "palette_locks": ["#1B3A5C"],
+    "logo_asset_url": "https://cdn.example.com/vantry/logo.svg",
+    "avoid": ["stock photos of scientists", "generic blue tech gradients"],
+    "motion_intensity": "restrained"
+  },
+  "three_d": {
+    "required": true,
+    "subjects": [
+      {
+        "key": "hero_subject",
+        "prompt": "A precision achromatic doublet lens assembly in a black anodised aluminium barrel, threaded retaining ring visible, optical glass with a faint magenta anti-reflective coating",
+        "placement": "hero",
+        "material_hint": "glass",
+        "scale_hint": 1.4,
+        "poly_budget": 110000,
+        "must_be_accurate": true
+      },
+      {
+        "key": "showcase_primary",
+        "prompt": "A single aspheric lens blank, uncoated, resting on its edge, showing the curvature profile",
+        "placement": "showcase",
+        "material_hint": "glass",
+        "poly_budget": 40000,
+        "must_be_accurate": false
+      }
+    ],
+    "environment": { "hdri": "studio", "bg_mode": "gradient" },
+    "fallback_policy": "poster_image"
+  },
+  "integrations": {
+    "stripe": { "enabled": false, "mode": "one_time", "products": [], "tax_enabled": true },
+    "mail": { "provider": "zoho", "create_mailbox": true, "aliases": ["hello", "quotes"], "from_name": "Vantry Optics" },
+    "analytics": "cloudflare_web_analytics"
+  },
+  "content": {
+    "supplied_copy": {
+      "hero.headline": "Optics for instruments that don't exist yet",
+      "process.note": "Send a drawing or a paragraph. Either is enough to start."
+    },
+    "media": []
+  }
+}

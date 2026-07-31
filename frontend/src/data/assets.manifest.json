@@ -1,0 +1,37 @@
+{
+  "manifest_version": 1,
+  "brief_id": "9c31b7e4-5a80-4f2d-b6c9-04d1e82a75f3",
+  "generated_at": "2026-07-31T01:40:00.000Z",
+  "upgraded_at": null,
+  "hdri": { "preset": "city", "url": null, "intensity": 1 },
+  "assets": [
+    {
+      "key": "device_array",
+      "status": "placeholder",
+      "source": "primitive",
+      "url": null,
+      "poster": null,
+      "placement": "hero",
+      "alt": "A floating cluster of screens — TV, laptop, tablet and phone — all showing the same paused film frame",
+      "primitive": { "shape": "box", "args": [1.2, 0.72, 0.05] },
+      "transform": { "position": [0, 0, 0], "rotation": [0.1, -0.35, 0], "scale": 1.6, "autofit": true },
+      "material_hint": "metal",
+      "animation": { "mode": "pointer_parallax", "speed": 1 },
+      "budget": { "bytes": 0, "triangles": 110000 }
+    },
+    {
+      "key": "content_tile",
+      "status": "placeholder",
+      "source": "primitive",
+      "url": null,
+      "poster": null,
+      "placement": "showcase",
+      "alt": "A fanned stack of glowing poster tiles from the streaming library",
+      "primitive": { "shape": "box", "args": [0.7, 1, 0.04] },
+      "transform": { "position": [0, 0, 0], "rotation": [0, 0.25, -0.08], "scale": 1.2, "autofit": true },
+      "material_hint": "emissive",
+      "animation": { "mode": "float", "speed": 0.7 },
+      "budget": { "bytes": 0, "triangles": 40000 }
+    }
+  ]
+}

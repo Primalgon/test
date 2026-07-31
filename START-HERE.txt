@@ -1,0 +1,30 @@
+Reelroom — streaming site handoff
+=================================
+
+This zip is the full production template (frontend + backend + brief), not a
+single HTML file. A streaming site needs login, signup, account, and Stripe
+subscriptions — those need the server.
+
+Quick start
+-----------
+1. Install Node 20+ if you do not have it.
+2. Open a terminal in this folder.
+3. Frontend:
+     cd frontend
+     npm install
+     npm run build
+     npm run preview
+   Then open the URL it prints (usually http://localhost:4173).
+4. Auth, payments, and the database need the backend (see SETUP.md).
+5. Quality gate:
+     cd frontend && npm run selfcheck
+
+What is inside
+--------------
+brief.json                         the client brief (streaming_service preset)
+frontend/                          Vite + React + R3F site
+backend/                           Hono on Cloudflare Workers
+contracts/                         schemas + industry presets
+SETUP.md / MANUAL-RUN.md           deploy and run instructions
+
+Self-check report is next to this zip as reelroom-selfcheck-report.html.

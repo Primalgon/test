@@ -1,0 +1,139 @@
+{
+  "brief_id": "9c31b7e4-5a80-4f2d-b6c9-04d1e82a75f3",
+  "order_id": "manual-run-reelroom-001",
+  "account_id": "b2f8d031-6c47-4e5a-9d18-3a7c50e12f84",
+  "created_at": "2026-07-31T01:40:00.000Z",
+  "tier": "studio",
+  "business": {
+    "name": "Reelroom",
+    "legal_name": "Reelroom Media Inc.",
+    "industry": "streaming_service",
+    "one_liner": "Films and series that follow you to every screen you own",
+    "audience": "people who want their films and series in one place, without ads",
+    "differentiator": "Every plan is ad-free, including the cheapest one. One subscription covers TV, laptop, tablet and phone, playback picks up where you left off, and the Premium plan adds downloads for offline viewing. Cancel anytime from your own account.",
+    "competitors": ["Netflix", "Hulu"],
+    "tone_words": ["cinematic", "confident", "plain", "direct"],
+    "locale": "en-US",
+    "timezone": "America/New_York",
+    "contact": {
+      "email": "hello@reelroom.test"
+    }
+  },
+  "site": {
+    "domain": { "desired": "reelroom.test", "registrar_action": "point_existing", "nameserver_control": true },
+    "pages": [
+      {
+        "slug": "",
+        "title": "Reelroom",
+        "purpose": "Sell the subscription: show the library on every screen, put the plans one scroll away, and route everyone to signup",
+        "sections": ["hero3d", "feature_grid", "pricing", "gallery", "faq", "proof", "cta_band"]
+      },
+      { "slug": "signup", "title": "Create your account", "purpose": "Registration against the existing auth routes; the account is the product" },
+      { "slug": "login", "title": "Sign in", "purpose": "Session login for returning members" },
+      { "slug": "account", "title": "Your account", "purpose": "Show the member their own identity and subscription, with a route to the billing portal to change or cancel the plan" },
+      { "slug": "contact", "title": "Contact", "purpose": "Capture account and billing questions through the encrypted form" }
+    ],
+    "primary_cta": { "label": "Start watching", "action": "signup", "target": "/signup" },
+    "legal": { "needs_privacy_policy": true, "needs_terms": true, "cookie_regime": "ccpa" }
+  },
+  "design": {
+    "direction": "liquid-chrome",
+    "palette_locks": [],
+    "avoid": ["fake film posters with real actor likenesses", "red-envelope Netflix cliches"],
+    "motion_intensity": "alive"
+  },
+  "three_d": {
+    "required": true,
+    "subjects": [
+      {
+        "key": "device_array",
+        "prompt": "A floating cluster of dark devices — a thin-bezel television, an open laptop, a tablet and a phone — arranged in a loose arc, every screen glowing with the same paused film frame, dark glass and slim metal frames, hovering over a black reflective floor",
+        "placement": "hero",
+        "material_hint": "metal",
+        "scale_hint": 1.6,
+        "poly_budget": 110000,
+        "must_be_accurate": false
+      },
+      {
+        "key": "content_tile",
+        "prompt": "A fanned stack of glossy rectangular streaming poster tiles with rounded corners, edge-lit like backlit glass, abstract colour-field artwork with no text and no faces, floating above a dark reflective surface",
+        "placement": "showcase",
+        "material_hint": "emissive",
+        "scale_hint": 1.2,
+        "poly_budget": 40000,
+        "must_be_accurate": false
+      }
+    ],
+    "environment": { "hdri": "city", "bg_mode": "solid" },
+    "fallback_policy": "poster_image"
+  },
+  "integrations": {
+    "stripe": {
+      "enabled": true,
+      "mode": "subscription",
+      "products": [
+        {
+          "sku": "basic_monthly",
+          "name": "Basic",
+          "description": "One screen in HD. Ad-free.",
+          "amount_cents": 799,
+          "currency": "usd",
+          "recurring": "month"
+        },
+        {
+          "sku": "standard_monthly",
+          "name": "Standard",
+          "description": "Two screens in 4K. Ad-free.",
+          "amount_cents": 1299,
+          "currency": "usd",
+          "recurring": "month"
+        },
+        {
+          "sku": "premium_monthly",
+          "name": "Premium",
+          "description": "Four screens in 4K, ad-free, with downloads for offline viewing.",
+          "amount_cents": 1899,
+          "currency": "usd",
+          "recurring": "month"
+        }
+      ],
+      "tax_enabled": true
+    },
+    "mail": {
+      "provider": "zoho",
+      "create_mailbox": true,
+      "aliases": ["hello", "support"],
+      "from_name": "Reelroom"
+    },
+    "analytics": "cloudflare_web_analytics"
+  },
+  "content": {
+    "supplied_copy": {
+      "hero.headline": "Films and series that follow you to every screen you own",
+      "hero.sub": "Every plan is ad-free. Start on the TV, finish on your phone — playback picks up where you left off.",
+      "features.screens": "One subscription covers TV, laptop, tablet and phone.",
+      "features.adfree": "No ads on any plan, including the cheapest one.",
+      "features.resume": "Playback picks up where you left off, on any screen.",
+      "features.downloads": "The Premium plan adds downloads for offline viewing.",
+      "features.cancel": "Cancel anytime from your own account. You keep access until the end of the billing period.",
+      "plans.note": "Three plans, one library. Change or cancel anytime from your account.",
+      "faq.q1": "Which devices can I watch on?",
+      "faq.a1": "TV, laptop, tablet and phone. One subscription covers all of them, and playback picks up where you left off.",
+      "faq.q2": "Are there ads?",
+      "faq.a2": "No. Every plan is ad-free, including Basic.",
+      "faq.q3": "Can I cancel anytime?",
+      "faq.a3": "Yes. Manage or cancel your plan from the billing portal in your account. You keep access until the end of the billing period.",
+      "faq.q4": "Can I download things to watch offline?",
+      "faq.a4": "Downloads for offline viewing are included on the Premium plan.",
+      "proof.quote_1": "Started a film on the TV and finished it on my phone on the train. It picked up exactly where I left off.",
+      "proof.quote_1_author": "Priya S.",
+      "proof.quote_1_role": "Member",
+      "proof.quote_2": "Ad-free on the cheapest plan is what won me over. I cancelled two other services a month after joining.",
+      "proof.quote_2_author": "Jordan M.",
+      "proof.quote_2_role": "Member",
+      "cta.title": "One library. Every screen. No ads.",
+      "cta.sub": "Films and series that follow you to every screen you own."
+    },
+    "media": []
+  }
+}

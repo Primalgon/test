@@ -1,0 +1,628 @@
+{
+  "name": "Forge 02 — 3D swap, verify, publish",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "n-0011",
+      "name": "Called by workflow 1",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Step 4. One generation job per brief subject, with the direction's material\n// and lighting language folded into the prompt. Higgsfield generates from the\n// prompt alone — anything the prompt omits is left to chance, so the material,\n// the direction and the intended isolation all belong in there.\nconst brief = $json.brief;\nconst direction = brief.design.direction;\n\nconst DIRECTION_STYLE = {\n  'kinetic-industrial':  'machined aluminium and anodised steel, hard edges, visible fasteners, industrial product render',\n  'soft-optic':          'polished optical glass and soft matte polymer, smooth transitions, clean studio product render',\n  'archive-editorial':   'aged patina, natural materials, museum catalogue photography, even neutral lighting',\n  'liquid-chrome':       'liquid chrome, mirror finish, flowing organic surface, high reflectivity',\n  'botanical-technical': 'natural organic material, matte surface, botanical specimen accuracy, soft daylight',\n  'monolith':            'monolithic cast plaster and stone, matte, minimal detail, single raking light',\n};\n\nreturn (brief.three_d?.subjects || []).map((subject) => ({\n  json: {\n    ...$json,\n    asset_key: subject.key,\n    must_be_accurate: subject.must_be_accurate === true,\n    poly_budget: subject.poly_budget || 80000,\n    // Prompt order matters — the opening tokens are weighted most heavily, so\n    // the subject leads and the constraints trail.\n    prompt: [\n      subject.prompt,\n      subject.material_hint ? subject.material_hint + ' material' : '',\n      DIRECTION_STYLE[direction] || '',\n      'single isolated object, centred, neutral background, no ground plane, no text',\n    ].filter(Boolean).join(', '),\n  },\n}));"
+      },
+      "id": "n-0012",
+      "name": "Build Higgsfield jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n-0013",
+      "name": "One subject at a time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -20,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "method": "POST",
+        "url": "={{ $env.HIGGSFIELD_API_URL }}/v1/3d/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.HIGGSFIELD_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prompt: $json.prompt, format: \"glb\", target_triangles: $json.poly_budget, texture_resolution: 2048 }) }}"
+      },
+      "id": "n-0014",
+      "name": "Higgsfield — generate 3D",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "seconds"
+      },
+      "id": "n-0015",
+      "name": "Wait for mesh",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        420,
+        420
+      ],
+      "webhookId": "forge-higgsfield-wait"
+    },
+    {
+      "parameters": {
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "method": "GET",
+        "url": "={{ $env.HIGGSFIELD_API_URL }}/v1/jobs/{{ $json.job_id || $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.HIGGSFIELD_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "n-0016",
+      "name": "Higgsfield — poll job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "terminal-state",
+              "leftValue": "={{ [\"completed\",\"failed\",\"cancelled\"].includes($json.status) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n-0017",
+      "name": "Mesh ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        860,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// One row per asset, whatever the outcome. A failed subject still produces a\n// row so the manifest patch is complete and the site keeps its placeholder\n// rather than losing the entry entirely.\nconst r = $json;\nconst job = $('One subject at a time').first().json;\n\nreturn [{\n  json: {\n    asset_key: job.asset_key,\n    must_be_accurate: job.must_be_accurate,\n    prompt: job.prompt,\n    status: r.status,\n    output_url: r.output?.glb_url || r.output_url || null,\n    preview_url: r.output?.preview_url || r.preview_url || null,\n    triangle_count: r.output?.triangle_count ?? null,\n    file_size: r.output?.bytes ?? null,\n    job_id: r.job_id || r.id,\n    error: r.error || null,\n  },\n}];"
+      },
+      "id": "n-0018",
+      "name": "Collect result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Everything the loop collected, turned into the body of /assets/upgrade.\nconst results = $('Collect result').all().map((i) => i.json);\nconst ctx = $('Called by workflow 1').first().json;\n\nconst assets = results.map((r) => {\n  const ok = r.status === 'completed' && r.output_url;\n  return {\n    key: r.asset_key,\n    status: ok ? 'ready' : 'failed',\n    source: ok ? 'higgsfield' : 'primitive',\n    url: ok ? r.output_url : null,\n    poster: r.preview_url || null,\n    bytes: r.file_size ?? undefined,\n    triangles: r.triangle_count ?? undefined,\n    higgsfield_job_id: r.job_id,\n    prompt: r.prompt,\n    error: ok ? undefined : (r.error || 'generation did not complete'),\n  };\n});\n\n// A subject flagged must_be_accurate is the client's actual product. A\n// wrong-looking mesh there is worse than no mesh, so it goes to a human\n// instead of shipping. Everything else falls back to its placeholder and the\n// site still ships on time.\nconst needsHuman = assets.filter((a) => {\n  const src = results.find((r) => r.asset_key === a.key);\n  return a.status === 'failed' && src?.must_be_accurate;\n});\n\nreturn [{\n  json: {\n    ...ctx,\n    artifact: 'assets',\n    payload: { assets },\n    needs_human: needsHuman,\n    assets_ready: assets.filter((a) => a.status === 'ready').length,\n    assets_total: assets.length,\n  },\n}];"
+      },
+      "id": "n-0019",
+      "name": "Build manifest patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Write the payload to a file for the build host to apply.\n//\n// This used to sign an HMAC and POST to /api/_n8n/* on the live site. Those\n// endpoints are gone: a permanently open write path into every production site\n// is not worth the convenience, and the build host already holds the site's\n// database credentials directly. Same result, no listening endpoint, and every\n// change leaves a git history.\nconst fs = require('fs');\nconst path = require('path');\n\nconst dir = path.join($env.FORGE_SITES_DIR, $json.site_slug, '.build');\nfs.mkdirSync(dir, { recursive: true });\n\nconst file = path.join(dir, $json.artifact + '.json');\nfs.writeFileSync(file, JSON.stringify($json.payload, null, 2));\n\nreturn [{ json: { ...$json, artifact_path: file } }];"
+      },
+      "id": "n-0020",
+      "name": "Write manifest artifact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=cd $FORGE_SITES_DIR/{{ $json.site_slug }}/backend && npm run apply -- --assets {{ $json.artifact_path }} --manifest ../frontend/src/data/assets.manifest.json && cd ../frontend && npm run build && npm run budget && npx wrangler pages deploy dist --project-name {{ $json.site_slug }}"
+      },
+      "id": "n-0021",
+      "name": "Apply assets + rebuild",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        200,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=cd $FORGE_SITES_DIR/{{ $('Build manifest patch').first().json.site_slug }}/backend && npm run verify -- --origin {{ $('Build manifest patch').first().json.site_origin }}"
+      },
+      "id": "n-0022",
+      "name": "Run verification",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        420,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// verify-deployment.ts prints a machine-readable last line specifically so\n// nothing here has to scrape human-facing output.\nconst ctx = $('Build manifest patch').first().json;\nconst stdout = $json.stdout || '';\n\nconst line = stdout.split('\\n').find((l) => l.startsWith('::result::'));\nif (!line) {\n  throw new Error('Verification produced no ::result:: line. stderr: ' + String($json.stderr || '').slice(0, 800));\n}\nconst result = JSON.parse(line.slice('::result::'.length));\n\n// An asset the client cares about failing to generate is a release blocker\n// even when every security check passed.\nconst blockers = [...(result.failures || [])];\nfor (const a of ctx.needs_human) {\n  blockers.push({ check: 'asset.' + a.key, severity: 'blocker', detail: 'must_be_accurate subject failed to generate: ' + (a.error || 'unknown') });\n}\n\nconst passed = result.passed && blockers.length === (result.failures || []).length && ctx.needs_human.length === 0;\n\nreturn [{\n  json: {\n    ...ctx,\n    artifact: 'qa',\n    passed,\n    payload: {\n      run_id: $execution.id,\n      passed,\n      score: result.score ?? null,\n      failures: blockers,\n    },\n    verification: result,\n  },\n}];"
+      },
+      "id": "n-0023",
+      "name": "Parse verification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Write the payload to a file for the build host to apply.\n//\n// This used to sign an HMAC and POST to /api/_n8n/* on the live site. Those\n// endpoints are gone: a permanently open write path into every production site\n// is not worth the convenience, and the build host already holds the site's\n// database credentials directly. Same result, no listening endpoint, and every\n// change leaves a git history.\nconst fs = require('fs');\nconst path = require('path');\n\nconst dir = path.join($env.FORGE_SITES_DIR, $json.site_slug, '.build');\nfs.mkdirSync(dir, { recursive: true });\n\nconst file = path.join(dir, $json.artifact + '.json');\nfs.writeFileSync(file, JSON.stringify($json.payload, null, 2));\n\nreturn [{ json: { ...$json, artifact_path: file } }];"
+      },
+      "id": "n-0024",
+      "name": "Write QA artifact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=cd $FORGE_SITES_DIR/{{ $json.site_slug }}/backend && npm run apply -- --qa {{ $json.artifact_path }}"
+      },
+      "id": "n-0025",
+      "name": "Record QA verdict",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "qa-passed",
+              "leftValue": "={{ $('Parse verification').first().json.passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n-0026",
+      "name": "Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/sites",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n      account_id: $('Parse verification').first().json.account_id,\n      brief_id: $('Parse verification').first().json.brief_id,\n      order_id: $('Parse verification').first().json.order_id,\n      slug: $('Parse verification').first().json.site_slug,\n      origin: $('Parse verification').first().json.site_origin,\n      status: 'live',\n      assets_ready: $('Parse verification').first().json.assets_ready,\n      assets_total: $('Parse verification').first().json.assets_total,\n      qa_score: $('Parse verification').first().json.verification.score,\n      published_at: new Date().toISOString()\n    }) }}"
+      },
+      "id": "n-0027",
+      "name": "Supabase — publish to account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/briefs?brief_id=eq.{{ $('Parse verification').first().json.brief_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n      status: 'needs_human',\n      qa_failures: $('Parse verification').first().json.payload.failures,\n      reviewed_at: null,\n      updated_at: new Date().toISOString()\n    }) }}"
+      },
+      "id": "n-0028",
+      "name": "Supabase — flag for review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -240,
+        1020
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "n-0029",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        900
+      ]
+    }
+  ],
+  "connections": {
+    "Called by workflow 1": {
+      "main": [
+        [
+          {
+            "node": "Build Higgsfield jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Higgsfield jobs": {
+      "main": [
+        [
+          {
+            "node": "One subject at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One subject at a time": {
+      "main": [
+        [
+          {
+            "node": "Build manifest patch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Higgsfield — generate 3D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Higgsfield — generate 3D": {
+      "main": [
+        [
+          {
+            "node": "Wait for mesh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for mesh": {
+      "main": [
+        [
+          {
+            "node": "Higgsfield — poll job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Higgsfield — poll job": {
+      "main": [
+        [
+          {
+            "node": "Mesh ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mesh ready?": {
+      "main": [
+        [
+          {
+            "node": "Collect result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait for mesh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect result": {
+      "main": [
+        [
+          {
+            "node": "One subject at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build manifest patch": {
+      "main": [
+        [
+          {
+            "node": "Write manifest artifact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write manifest artifact": {
+      "main": [
+        [
+          {
+            "node": "Apply assets + rebuild",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply assets + rebuild": {
+      "main": [
+        [
+          {
+            "node": "Run verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run verification": {
+      "main": [
+        [
+          {
+            "node": "Parse verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse verification": {
+      "main": [
+        [
+          {
+            "node": "Write QA artifact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write QA artifact": {
+      "main": [
+        [
+          {
+            "node": "Record QA verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record QA verdict": {
+      "main": [
+        [
+          {
+            "node": "Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passed?": {
+      "main": [
+        [
+          {
+            "node": "Supabase — publish to account",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase — flag for review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase — publish to account": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase — flag for review": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": "={{ $env.FORGE_ERROR_WORKFLOW_ID }}",
+    "timezone": "UTC"
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "forge"
+  },
+  "tags": [
+    {
+      "name": "forge"
+    }
+  ]
+}

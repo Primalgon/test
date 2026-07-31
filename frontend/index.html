@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-US" data-direction="liquid-chrome">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+
+    <title>Reelroom — Films and series on every screen you own</title>
+    <meta name="description" content="Films and series that follow you to every screen you own. Every plan is ad-free — start on the TV, finish on your phone, and playback picks up where you left off." />
+    <link rel="canonical" href="https://reelroom.test/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Reelroom — Films and series on every screen you own" />
+    <meta property="og:description" content="Every plan is ad-free. Start on the TV, finish on your phone — playback picks up where you left off." />
+    <meta property="og:image" content="https://reelroom.test/assets/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!--
+      The theme colour is read from the direction pack at runtime so it always
+      matches the palette; this value is only the pre-paint fallback that stops
+      a white flash on mobile Safari.
+    -->
+    <meta name="theme-color" content="#08080a" />
+
+    <!--
+      No font preconnect, and no Google Fonts link. Fonts are self-hosted from
+      /fonts and declared with @font-face in styles/directions.css.
+
+      Three reasons this is worth the extra step. It removes a third-party DNS
+      lookup and TLS handshake from the critical path, which is the slowest part
+      of loading a webfont. It stops every visitor's IP being sent to a third
+      party on page load, which in the EU has been found to be a data-protection
+      violation in its own right. And it lets font-src stay 'self', so a script
+      injected into the page cannot exfiltrate through a font request.
+    -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <script type="application/ld+json">
+      { "@context": "https://schema.org", "@type": "Organization",
+        "name": "Reelroom", "url": "https://reelroom.test/",
+        "email": "hello@reelroom.test",
+        "logo": "https://reelroom.test/assets/logo.svg" }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div id="root"></div>
+    <noscript>
+      <div class="noscript-notice">
+        <h1>Reelroom</h1>
+        <p>This site needs JavaScript for its interactive parts. The essentials are below.</p>
+        <p>Films and series that follow you to every screen you own. Every plan is ad-free.</p>
+        <p><a href="mailto:hello@reelroom.test">hello@reelroom.test</a></p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge.internal/schemas/asset-manifest.schema.json",
+  "title": "AssetManifest",
+  "description": "Lives at frontend/src/data/assets.manifest.json. Fable writes it with placeholder entries at generate time (step 3). Step 4 rewrites the `url`, `poster`, `status`, and `source` fields in place after Higgsfield returns real GLBs. No other file in the frontend references a 3D URL, so the swap is one file write and never a code edit.",
+  "type": "object",
+  "required": ["manifest_version", "brief_id", "generated_at", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": { "const": 1 },
+    "brief_id": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "upgraded_at": { "type": ["string", "null"], "format": "date-time", "description": "Set by step 4 when Higgsfield assets land. null means still on placeholders." },
+    "hdri": {
+      "type": "object",
+      "properties": {
+        "preset": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "intensity": { "type": "number", "default": 1 }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "status", "source", "url", "placement"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Matches three_d.subjects[].key from the brief." },
+          "status": {
+            "enum": ["placeholder", "generating", "ready", "failed"],
+            "description": "The frontend renders a primitive for `placeholder`, the poster image for `failed`, and the GLB for `ready`. `generating` behaves as `placeholder`."
+          },
+          "source": { "enum": ["primitive", "higgsfield", "client_supplied"] },
+          "url": { "type": ["string", "null"], "description": "Absolute HTTPS URL to a .glb. null while status=placeholder." },
+          "draco": { "type": "boolean", "default": false },
+          "meshopt": { "type": "boolean", "default": true },
+          "ktx2": { "type": "boolean", "default": true, "description": "Textures are KTX2/Basis compressed. Requires the transcoder path in ThreeCanvas." },
+          "poster": { "type": ["string", "null"], "description": "Static render used for no-WebGL, reduced-motion, prefers-data-saver, and failed states. Required before QA passes." },
+          "placement": { "enum": ["hero", "showcase", "inline", "background", "cursor_follow", "scroll_scrub"] },
+          "primitive": {
+            "type": "object",
+            "description": "Shape rendered while status != ready. Keeps layout stable so the swap causes zero reflow.",
+            "properties": {
+              "shape": { "enum": ["box", "sphere", "torus", "cylinder", "icosahedron", "capsule"], "default": "icosahedron" },
+              "args": { "type": "array", "items": { "type": "number" } }
+            }
+          },
+          "transform": {
+            "type": "object",
+            "properties": {
+              "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3, "default": [0, 0, 0] },
+              "rotation": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3, "default": [0, 0, 0] },
+              "scale": { "type": "number", "default": 1 },
+              "autofit": { "type": "boolean", "default": true, "description": "Normalize the mesh to a unit bounding box on load, then apply scale. Higgsfield output arrives at unpredictable scale, so leave this on." }
+            }
+          },
+          "material_hint": { "enum": ["matte", "metal", "glass", "ceramic", "fabric", "liquid", "emissive"], "default": "matte" },
+          "animation": {
+            "type": "object",
+            "properties": {
+              "mode": { "enum": ["none", "spin", "float", "scroll_scrub", "pointer_parallax", "clip"], "default": "float" },
+              "clip_name": { "type": ["string", "null"] },
+              "speed": { "type": "number", "default": 1 }
+            }
+          },
+          "budget": {
+            "type": "object",
+            "description": "Filled in by step 4 from the real file. QA (step 5) fails the build if these exceed tier limits.",
+            "properties": {
+              "bytes": { "type": "integer" },
+              "triangles": { "type": "integer" },
+              "draw_calls_est": { "type": "integer" },
+              "texture_mb": { "type": "number" }
+            }
+          },
+          "higgsfield": {
+            "type": "object",
+            "description": "Provenance from step 4. Kept so a regeneration can be replayed without the original brief.",
+            "properties": {
+              "job_id": { "type": "string" },
+              "model": { "type": "string" },
+              "prompt": { "type": "string" },
+              "seed": { "type": ["integer", "null"] },
+              "attempts": { "type": "integer", "default": 1 }
+            }
+          },
+          "alt": { "type": "string", "description": "Required. Read by screen readers in place of the canvas." }
+        }
+      }
+    }
+  }
+}

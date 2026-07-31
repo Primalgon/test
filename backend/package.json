@@ -1,0 +1,38 @@
+{
+  "name": "@forge/site-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production backend for generated sites. Hono on Cloudflare Workers, Turso/libSQL, Stripe, Zoho, Cloudflare + Namecheap provisioning.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migrate": "tsx scripts/migrate.ts",
+    "migrate:status": "tsx scripts/migrate.ts --status",
+    "provision": "tsx scripts/provision.ts",
+    "seed:stripe": "tsx scripts/seed-stripe.ts",
+    "secrets:push": "tsx scripts/push-secrets.ts",
+    "verify": "tsx scripts/verify-deployment.ts",
+    "apply": "tsx scripts/apply-build-artifacts.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.7",
+    "hono": "^4.7.11",
+    "stripe": "^18.2.1",
+    "zod": "^3.25.51"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250604.0",
+    "dotenv": "^16.5.0",
+    "fast-xml-parser": "^5.2.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.2",
+    "wrangler": "^4.19.1"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}

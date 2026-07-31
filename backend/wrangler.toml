@@ -1,0 +1,62 @@
+#:schema node_modules/wrangler/config-schema.json
+# ---------------------------------------------------------------------------
+# Per-site Worker. n8n rewrites `name`, `routes`, and the [vars] block from the
+# brief before `wrangler deploy`. Everything else is identical across sites.
+# ---------------------------------------------------------------------------
+name = "reelroom-api"
+main = "src/index.ts"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]   # required by the Stripe SDK
+workers_dev = false
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# Public, non-secret config. Secrets go through `wrangler secret put` (see scripts/push-secrets.ts).
+[vars]
+SITE_SLUG      = "reelroom"
+SITE_NAME      = "Reelroom"
+PUBLIC_ORIGIN  = "https://reelroom.test"
+ADMIN_ORIGIN   = "https://admin.reelroom.test"
+ENVIRONMENT    = "production"
+MAIL_FROM       = "hello@reelroom.test"
+MAIL_FROM_NAME  = "Reelroom"
+STRIPE_ENABLED  = "true"
+LOG_LEVEL       = "info"
+
+# Durable Object backing the rate limiter. KV is eventually consistent and
+# cannot enforce a limit correctly; a DO can, because it is single-threaded
+# per key.
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
+# Short-lived cache for idempotency keys, sessions lookaside, and OAuth tokens.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "KV_NAMESPACE_ID"                    # <- filled by provisioning (scripts/provision.ts)
+
+# Uploaded media (contact-form attachments, client logos, generated posters).
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "reelroom-media"
+
+[[routes]]
+pattern = "reelroom.test/api/*"
+zone_name = "reelroom.test"
+
+[[routes]]
+pattern = "admin.reelroom.test/*"
+zone_name = "reelroom.test"
+
+[env.staging]
+name = "reelroom-api-staging"
+workers_dev = true
+[env.staging.vars]
+ENVIRONMENT = "staging"
+LOG_LEVEL   = "debug"
