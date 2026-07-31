@@ -1,0 +1,313 @@
+/* ===========================================================================
+   DESIGN DIRECTIONS
+   ---------------------------------------------------------------------------
+   Six complete visual identities. `brief.design.direction` sets
+   <html data-direction="…"> and nothing else in the app branches on it — every
+   component reads tokens only. Adding a seventh direction means adding one
+   block here, not touching a single component.
+
+   Each pack defines: 5–6 palette values, 3 type roles, a spatial rhythm, and
+   the 3D lighting/material bias that makes the Higgsfield asset sit inside the
+   palette instead of floating on top of it. That last part is the one most
+   3D-on-the-web work gets wrong — the model is lit neutrally and reads as a
+   sticker.
+
+   Deliberately avoided across all six: cream #F4F1EA grounds, terracotta
+   #D97757 accents, and near-black + acid-green. Those are the current
+   house style of every AI-generated site and would make our output
+   identifiable at a glance.
+   =========================================================================== */
+
+:root {
+  /* Rhythm primitives shared by all directions; packs override the scale ratio. */
+  --step: 0.5rem;
+  --measure: 68ch;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 180ms;
+  --dur-mid: 420ms;
+  --dur-slow: 900ms;
+}
+
+/* ---------------------------------------------------------------------------
+   1. KINETIC-INDUSTRIAL
+   For: manufacturing, hardware, robotics, engineering services, tooling.
+   Thesis: the page is a spec sheet that happens to move. Orange is a *state
+   indicator*, never decoration — it appears only on live/active elements, the
+   way it does on real machinery.
+   Signature: measurement tick-rails down the section gutters, with real
+   dimension callouts on the 3D subject.
+--------------------------------------------------------------------------- */
+[data-direction='kinetic-industrial'] {
+  --bg:            #0e1013;
+  --bg-raised:     #171a1f;
+  --surface:       #1e232a;
+  --ink:           #e8eaed;
+  --ink-muted:     #939aa4;
+  --rule:          #2c333c;
+  --accent:        #ff5c1a;   /* state only: active, live, in-motion */
+  --accent-ink:    #0e1013;
+  --signal:        #7dd3c0;   /* secondary state: complete, verified */
+
+  --font-display: 'Archivo Expanded', 'Archivo', 'Helvetica Neue', sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-utility: 'JetBrains Mono', ui-monospace, monospace;
+
+  --display-weight: 700;
+  --display-tracking: -0.03em;
+  --display-case: none;
+  --utility-tracking: 0.14em;
+  --utility-case: uppercase;
+
+  --scale-ratio: 1.333;
+  --section-y: clamp(5rem, 11vw, 9rem);
+  --radius: var(--radius-sm);
+  --border-weight: 1px;
+
+  /* 3D bias: hard key light, dark falloff, visible specular — machined metal. */
+  --three-env: 'warehouse';
+  --three-env-intensity: 0.55;
+  --three-key-intensity: 2.6;
+  --three-fill-intensity: 0.18;
+  --three-metalness: 0.85;
+  --three-roughness: 0.32;
+  --three-clearcoat: 0;
+  --three-bg-mode: solid;
+}
+
+/* ---------------------------------------------------------------------------
+   2. SOFT-OPTIC
+   For: optics, medical devices, skincare, wellness hardware, diagnostics.
+   Thesis: light passing through a lens. Everything is slightly dispersed.
+   Signature: the 3D subject refracts the page behind it, and section edges
+   carry a faint chromatic split.
+--------------------------------------------------------------------------- */
+[data-direction='soft-optic'] {
+  --bg:            #f6f2f4;
+  --bg-raised:     #fffdfd;
+  --surface:       #ece3e8;
+  --ink:           #2a1f33;
+  --ink-muted:     #7b6d84;
+  --rule:          #ddd0d9;
+  --accent:        #6b4ea8;
+  --accent-ink:    #fffdfd;
+  --signal:        #3ec6d8;   /* the cyan edge of a dispersed highlight */
+
+  --font-display: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-body:    'Sora', system-ui, sans-serif;
+  --font-utility: 'Sora', system-ui, sans-serif;
+
+  --display-weight: 300;
+  --display-tracking: -0.025em;
+  --display-case: none;
+  --utility-tracking: 0.06em;
+  --utility-case: none;
+
+  --scale-ratio: 1.25;
+  --section-y: clamp(6rem, 13vw, 11rem);
+  --radius: 999px;            /* pill geometry throughout — lens shapes */
+  --border-weight: 1px;
+
+  /* 3D bias: broad soft light, high transmission, real dispersion. */
+  --three-env: 'studio';
+  --three-env-intensity: 1.15;
+  --three-key-intensity: 1.1;
+  --three-fill-intensity: 0.8;
+  --three-metalness: 0.05;
+  --three-roughness: 0.08;
+  --three-transmission: 0.92;
+  --three-ior: 1.52;
+  --three-dispersion: 0.18;
+  --three-bg-mode: gradient;
+}
+
+/* ---------------------------------------------------------------------------
+   3. ARCHIVE-EDITORIAL
+   For: galleries, publishers, research institutes, heritage brands, studios.
+   Thesis: a catalogue, not a newspaper. Numbers are accession numbers — they
+   carry real information (order in the collection), which is the only reason
+   numbered markers earn their place.
+   Signature: a fixed left accession rail that tracks scroll position.
+--------------------------------------------------------------------------- */
+[data-direction='archive-editorial'] {
+  --bg:            #e9e6dc;
+  --bg-raised:     #f3f1ea;
+  --surface:       #ded9cb;
+  --ink:           #1f2933;
+  --ink-muted:     #6a7078;
+  --rule:          #c3bda9;
+  --accent:        #1d4d3f;   /* ledger green */
+  --accent-ink:    #f3f1ea;
+  --signal:        #8c2f39;   /* madder red, for corrections and emphasis */
+
+  --font-display: 'Newsreader', 'Spectral', Georgia, serif;
+  --font-body:    'Newsreader', 'Spectral', Georgia, serif;
+  --font-utility: 'Archivo Narrow', 'Helvetica Neue Condensed', sans-serif;
+
+  --display-weight: 400;
+  --display-tracking: -0.015em;
+  --display-case: none;
+  --utility-tracking: 0.1em;
+  --utility-case: uppercase;
+
+  --scale-ratio: 1.2;
+  --section-y: clamp(4.5rem, 9vw, 8rem);
+  --radius: 0;
+  --border-weight: 1px;
+
+  /* 3D bias: even, documentary lighting. The object is catalogued, not staged. */
+  --three-env: 'apartment';
+  --three-env-intensity: 0.8;
+  --three-key-intensity: 1.4;
+  --three-fill-intensity: 0.55;
+  --three-metalness: 0.1;
+  --three-roughness: 0.72;
+  --three-bg-mode: solid;
+}
+
+/* ---------------------------------------------------------------------------
+   4. LIQUID-CHROME
+   For: fashion, music, crypto-adjacent, agencies, product launches.
+   Thesis: the 3D asset IS the page. Type is knocked out over it; the material
+   shifts as you scroll. Use only when three_d.subjects has a hero-placement
+   entry — without one this direction has nothing to show.
+   Signature: full-bleed model with scroll-driven material transition.
+--------------------------------------------------------------------------- */
+[data-direction='liquid-chrome'] {
+  --bg:            #08080a;
+  --bg-raised:     #101014;
+  --surface:       #18181d;
+  --ink:           #fafafa;
+  --ink-muted:     #8a8a95;
+  --rule:          #26262e;
+  --accent:        #c9b6ff;   /* iridescent sample, not a flat brand colour */
+  --accent-ink:    #08080a;
+  --signal:        #ffd166;
+
+  --font-display: 'Anton', 'Archivo Black', Impact, sans-serif;
+  --font-body:    'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-utility: 'Inter Tight', system-ui, sans-serif;
+
+  --display-weight: 400;
+  --display-tracking: -0.05em;
+  --display-case: uppercase;
+  --utility-tracking: 0.18em;
+  --utility-case: uppercase;
+
+  --scale-ratio: 1.5;         /* extreme jumps; the display face is huge */
+  --section-y: clamp(6rem, 15vw, 13rem);
+  --radius: 0;
+  --border-weight: 0;
+
+  /* 3D bias: full mirror. Environment reflection carries the whole look. */
+  --three-env: 'city';
+  --three-env-intensity: 1.6;
+  --three-key-intensity: 0.7;
+  --three-fill-intensity: 0.3;
+  --three-metalness: 1;
+  --three-roughness: 0.04;
+  --three-iridescence: 0.85;
+  --three-bg-mode: hdri_visible;
+}
+
+/* ---------------------------------------------------------------------------
+   5. BOTANICAL-TECHNICAL
+   For: food and drink, agriculture, sustainability, natural products, labs.
+   Thesis: a herbarium sheet. Organic subject, technical annotation.
+   Signature: hairline leader lines from the 3D subject to real labels — the
+   annotations state true facts about the product, so they inform rather than
+   decorate.
+--------------------------------------------------------------------------- */
+[data-direction='botanical-technical'] {
+  --bg:            #f2efe4;
+  --bg-raised:     #fbf9f2;
+  --surface:       #e4e0cf;
+  --ink:           #23301f;
+  --ink-muted:     #6d7a63;
+  --rule:          #bfc4ac;
+  --accent:        #3f6b3a;
+  --accent-ink:    #fbf9f2;
+  --signal:        #a8541f;   /* iron-gall annotation ink */
+
+  --font-display: 'Bitter', 'Charter', Georgia, serif;
+  --font-body:    'Bitter', 'Charter', Georgia, serif;
+  --font-utility: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --display-weight: 500;
+  --display-tracking: -0.01em;
+  --display-case: none;
+  --utility-tracking: 0.08em;
+  --utility-case: uppercase;
+
+  --scale-ratio: 1.25;
+  --section-y: clamp(5rem, 10vw, 8.5rem);
+  --radius: var(--radius-md);
+  --border-weight: 1px;
+
+  /* 3D bias: daylight, subsurface-ish softness, no metal. */
+  --three-env: 'forest';
+  --three-env-intensity: 0.95;
+  --three-key-intensity: 1.8;
+  --three-fill-intensity: 0.7;
+  --three-metalness: 0;
+  --three-roughness: 0.85;
+  --three-bg-mode: solid;
+}
+
+/* ---------------------------------------------------------------------------
+   6. MONOLITH
+   For: architecture, law, private clients, consultancies, anything where
+   restraint signals seniority.
+   Thesis: inverted hierarchy — the type is enormous, the object is small and
+   precisely placed. Two values plus one paper tone; no accent colour at all,
+   which is the risk this direction takes.
+   Signature: a single 3D object at ~12% of viewport, anchored to the optical
+   centre of a very large word.
+--------------------------------------------------------------------------- */
+[data-direction='monolith'] {
+  --bg:            #d8d5cf;   /* warm plaster, not cream */
+  --bg-raised:     #e2dfd9;
+  --surface:       #c9c5bd;
+  --ink:           #16161a;
+  --ink-muted:     #5f5e5c;
+  --rule:          #b1ada4;
+  --accent:        #16161a;   /* the accent is the ink — deliberate */
+  --accent-ink:    #d8d5cf;
+  --signal:        #16161a;
+
+  --font-display: 'Instrument Serif', 'Times New Roman', serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-utility: 'Inter', system-ui, sans-serif;
+
+  --display-weight: 400;
+  --display-tracking: -0.04em;
+  --display-case: none;
+  --utility-tracking: 0.22em;
+  --utility-case: uppercase;
+
+  --scale-ratio: 1.618;       /* the largest jumps of any direction */
+  --section-y: clamp(7rem, 16vw, 14rem);
+  --radius: 0;
+  --border-weight: 1px;
+
+  /* 3D bias: one raking light, deep shadow, matte plaster. */
+  --three-env: 'dawn';
+  --three-env-intensity: 0.4;
+  --three-key-intensity: 3.2;
+  --three-fill-intensity: 0.08;
+  --three-metalness: 0;
+  --three-roughness: 0.95;
+  --three-bg-mode: solid;
+}
+
+/* ---------------------------------------------------------------------------
+   Client palette locks.
+   brief.design.palette_locks writes these inline on <html>, and they win over
+   the pack. A client with real brand colours keeps them; everything else in
+   the direction still holds the identity together.
+--------------------------------------------------------------------------- */
+[style*='--brand-1'] { --accent: var(--brand-1); }
+[style*='--brand-2'] { --signal: var(--brand-2); }
